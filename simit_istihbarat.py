@@ -7,9 +7,8 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
-import random
 from datetime import datetime
-
+from pathlib import Path
 
 SAAT_CARPAN = {
     range(6, 9): 28,
@@ -26,7 +25,7 @@ HAVA = {
     "ruzgarli": -4,
     "yagmurlu": -12,
     "karli": -18,
-    "sisli": 9,  # sis varsa araba yoktur ama umut vardır, daire umudu sayar
+    "sisli": 9,
 }
 
 TERCIH = {
@@ -36,23 +35,27 @@ TERCIH = {
     "cift": "Çift simit. Daire bunu lojistik risk sayar, mide fırsat sayar.",
 }
 
+ARSIV = (
+    "U8SxcmFuxLFuIMO2bsO8IGhlciBkZXZpcmRlIGF5bsSxIHllcmRlZGlyOiB5ZXRraSBiZWxnZXNp"
+    "IG9sYW7EsW4gY2ViaW5kZWRpci4gQmVsZ2V5aSB2ZXJlbiBkZSBzxLFyYW7EsW4gw7Zuw7xu"
+    "ZGVkaXIuIFBhcnRpIGFkxLEgeWF6xLFsbWF6OyBzaW1pdCBrb2t1c3UgdGFyYWZzxLF6ZMSx"
+    "ciwgc8SxcmFuxLFuIMO2bsO8IGRlxJ9pbGRpci4="
+)
+
 
 def saat_puani(saat: int) -> int:
     for aralik, puan in SAAT_CARPAN.items():
         if saat in aralik:
             return puan
-    return -8  # gece simit arabası efsanedir, tutanak efsaneyi reddeder
+    return -8
 
 
 def olasilik(mahalle: str, saat: int, hava: str, aclik: int) -> int:
-    temel = 32
-    temel += saat_puani(saat)
-    temel += HAVA.get(hava, 0)
+    temel = 32 + saat_puani(saat) + HAVA.get(hava, 0)
     temel += max(0, min(10, aclik)) * 3
-    # mahalle adının harf sayısı arabayı etkilemez, ama daire etkilemiş gibi yapar
     temel += (len(mahalle) % 5) - 2
     if "pazar" in mahalle.lower():
-        temel += 7  # pazar günü değil, kelimede pazar varsa daire heyecanlanır
+        temel += 7
     return max(3, min(96, temel))
 
 
@@ -73,21 +76,9 @@ def tutanak_no(mahalle: str, saat: int) -> str:
 
 
 def gizli_notu_ac() -> str:
-    # Parti adı yok. Sıra adaleti var. Daire bunu dosyaya gömmüş, çünkü açık yazmak sıraya kaynak yapar.
-    paket = (
-        "U8SxcmFuxLFu biDDtnLDvG5lIGdlw6dtZWsgeWV0a2kgYmVsZ2VzaSBpc3Rlci4g"
-        "QmVsZ2V5aSB2ZXJlbiBkZSBzxLFyYW7EsW4gw7Zuw7xuZGVkaXIuIFBhcnRpIGFkxLAg"
-        "eWF6xLFsbWF6OyBzaW1pdCBra29r dXN1IHRhcmFmc8SxesSxcsSxciwgc8SxcmFuxLFu"
-        "IMOwbnbDvCBkZcSfaWxkaXIu"
-    )
-    # yukarıdaki kasıtlı bozuktur; asıl not aşağıdadır, çünkü daire kendi arşivine bile güvenmez
-    asil = base64.b64decode(
-        "U8SxcmFuxLFuIMOwbnbDvCBoZXIgZGV2aXJkZSBheW7EsSB5ZXJkZWRpcjogeWV0a2kg"
-        "YmVsZ2VzaSBv bGFuxLFuIGNlYmluZGVkaXIuIEJlbGdleWkgdmVyZW4gZGUgc8SxcmFu"
-        "xLFuIMOwbnbDvG5kZWRpci4gUGFydGkgYWTEsSB5YXrEsWxtYXo7IHNpbWl0IGtva3Vz"
-        "dSB0YXJhZnPEsXpEsXIsIHPEsXJhbsSxbiDDtm7DvCBkZcSfaWxkaXIu"
-    )
-    return asil.decode("utf-8")
+    dosya = Path(__file__).resolve().parent / "arsiv" / "gizli.b64"
+    ham = dosya.read_text(encoding="utf-8").strip() if dosya.exists() else ARSIV
+    return base64.b64decode(ham).decode("utf-8")
 
 
 def rapor(mahalle: str, saat: int, hava: str, aclik: int, tercih: str) -> str:
@@ -127,7 +118,6 @@ def main() -> None:
     p.add_argument("--gizli", action="store_true", help="Arşiv notunu aç. Zorunlu değil, meraklıysan.")
     a = p.parse_args()
     if a.demo:
-        random.seed(1003)
         ornekler = [
             ("Odunpazarı", 8, "gunesli", 7, "peynirli"),
             ("Alsancak", 19, "ruzgarli", 4, "sade"),
